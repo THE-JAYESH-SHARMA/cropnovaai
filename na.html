@@ -1,0 +1,553 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CropNova AI | General Diagnosis</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&display=swap" rel="stylesheet">
+    <!-- No need for the SDK script tag anymore -->
+
+    <style>
+        /* Add CSS for the small loader */
+        .ai-loader.small {
+            width: 20px;
+            height: 20px;
+            position: relative;
+            transform: scale(0.5); /* Make it smaller */
+            margin-right: 5px; /* Space between loader and text */
+            display: inline-block; /* Ensure it sits next to text */
+            vertical-align: middle; /* Align with text */
+        }
+         .ai-loader.small .ai-core {
+            width: 10px;
+            height: 10px;
+         }
+         .ai-loader.small .ai-ring {
+             border-width: 2px;
+         }
+
+         /* Style for the Gemini response area */
+         #gemini-response {
+             background: var(--dark); /* Or a slightly lighter dark */
+             border: 1px solid var(--accent);
+             border-radius: 8px;
+             padding: 1.5rem;
+             white-space: pre-wrap; /* Preserve line breaks from API response */
+             word-wrap: break-word; /* Break long words */
+             color: var(--light);
+             opacity: 0.9;
+             min-height: 100px; /* Give it some minimum height */
+             display: flex; /* Use flexbox for centering loader */
+             align-items: center; /* Center vertically */
+             justify-content: center; /* Center horizontally initially */
+             text-align: center; /* Center text initially */
+         }
+
+         #gemini-response > div {
+             text-align: left; /* Align content left once loaded */
+             width: 100%; /* Take full width */
+         }
+          #gemini-response .ai-loader.small + span {
+              display: inline-block; /* Ensure text is inline with loader */
+              vertical-align: middle;
+          }
+
+          .error-message {
+              color: var(--error);
+              font-weight: bold;
+          }
+    </style>
+</head>
+<body>
+    <!-- Futuristic Loading Animation -->
+    <div class="loading-screen">
+        <div class="ai-loader">
+            <div class="ai-core"></div>
+            <div class="ai-ring"></div>
+            <div class="ai-ring"></div>
+            <div class="ai-ring"></div>
+            <div class="ai-particles" id="particles"></div>
+        </div>
+        <div class="loading-text">INITIALIZING AI SYSTEMS</div>
+    </div>
+
+    <header>
+        <nav>
+            <div class="logo">CropNova AI</div>
+            <ul class="nav-links">
+                <li><a href="index.html">Home</a></li>
+                <li><a href="apple-disease.html">Specific Detection</a></li>
+            </ul>
+        </nav>
+    </header>
+
+    <main class="container">
+        <div class="card">
+            <h1 style="text-align: center; background: linear-gradient(to right, var(--accent), var(--light)); -webkit-background-clip: text; background-clip: text; color: transparent;">
+                AI GENERAL DIAGNOSIS
+            </h1>
+            <p style="text-align: center; margin: 1rem 0 2rem; opacity: 0.9;">
+                Use CropNova AI for general plant health analysis when a specific model isn't available.
+            </p>
+
+            <div class="webcam-interface">
+                <div class="webcam-container" id="webcam-container">
+                    <div id="webcam-placeholder" style="width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center;">
+                        <div style="font-size: 3rem; margin-bottom: 1rem;">🌿</div>
+                        <p>Camera feed or uploaded image will appear here</p>
+                        <p style="font-size: 0.9em; opacity: 0.7; margin-top: 0.5rem;">Use the buttons below to capture or upload an image for analysis.</p>
+                    </div>
+                    <div class="scan-overlay" id="scan-overlay" style="display: none;"></div>
+                    <canvas id="webcam-canvas" style="display: none; width: 100%; height: 100%;"></canvas>
+                    <img id="uploaded-image" style="display: none; width: 100%; height: 100%; object-fit: contain;">
+                </div>
+
+                <div class="controls">
+                    <button id="start-btn" class="btn" onclick="initWebcam()">
+                        <span>📷</span> Start Camera
+                    </button>
+                    <button id="switch-camera" class="btn" style="display: none;" onclick="switchCamera()">
+                        <span>🔄</span> Switch Camera
+                    </button>
+                    <label class="btn upload-btn">
+                        <span>📁</span> Upload Image
+                        <input type="file" id="file-upload" accept="image/*" onchange="handleImageUpload(this.files)">
+                    </label>
+                     <button id="analyze-btn" class="btn" style="display: none;" onclick="analyzeCurrentFrame()">
+                        <span>🧠</span> Analyze Image
+                    </button>
+                </div>
+            </div>
+
+            <div id="results-section" style="margin-top: 2rem; display: none;">
+                <h2 style="color: var(--accent); margin-bottom: 1.5rem; display: flex; align-items: center; gap: 0.5rem;">
+                    <span>🔍</span> Analysis Results
+                </h2>
+                <!-- This div will display the text response from Gemini -->
+                <div id="gemini-response" class="card" style="padding: 1.5rem; animation: fadeIn 0.5s ease-out; white-space: pre-wrap;">
+                    Initializing AI...
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <footer>
+        <div style="max-width: 1200px; margin: 0 auto;">
+            <div style="display: flex; justify-content: center; margin-bottom: 1.5rem;">
+                <div class="logo" style=" opacity: 0.7; font-size: 2rem;">CropNova AI</div>
+            </div>
+            <ul style="display: flex; justify-content: center; list-style: none; gap: 2rem; margin-bottom: 1.5rem; flex-wrap: wrap;">
+                <li><a href="index.html" style="color: var(--light); text-decoration: none;">Home</a></li>
+                <li><a href="apple-disease.html" style="color: var(--light); text-decoration: none;">Disease Detection</a></li>
+                
+            </ul>
+            <p style="opacity: 0.7;">© 2025 CropNova AI. All rights reserved.</p>
+        </div>
+    </footer>
+
+    <!-- Use a standard script tag -->
+    <script>
+        // !! IMPORTANT SECURITY WARNING !!
+        // Embedding your API key directly in client-side code is NOT secure.
+        // For production, use a backend server to make API calls.
+        // Replace 'YOUR_GEMINI_API_KEY' with your actual key for testing ONLY.
+        const API_KEY = "AIzaSyBhjo0l3pLfm0kM9e15dWyehSU7GetW2Go"; // <-- Your API Key Here
+        // Corrected API URL: Changed model name and added '=' after ?key
+        const GEMINI_MODEL_NAME = "gemini-1.5-flash"; // Updated model name
+        const GEMINI_API_URL = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL_NAME}:generateContent?key=${API_KEY}`;
+
+
+        let webcam, ctx;
+        let currentStream = null;
+        let facingMode = "environment"; // Start with rear camera
+        let videoElement = null; // Variable to hold the video element
+        let isAnalyzing = false; // Flag to prevent multiple analyses
+        let isGeminiInitialized = false; // Flag to track if API key is validated
+
+        async function initializeGemini() {
+             // Corrected condition: Check if API_KEY is the placeholder OR is falsy (empty string, null, undefined)
+             if (API_KEY === "YOUR_GEMINI_API_KEY" || !API_KEY) {
+                 console.error("CropNova API Key not set. Please replace 'YOUR_GEMINI_API_KEY' with your key.");
+                 document.getElementById('gemini-response').innerHTML = `
+                    <div class="error-message">API Key Error:</div>
+                    <p>Please replace 'YOUR_GEMINI_API_KEY' in the script with your actual CropNova API key.</p>
+                    <p><strong>Warning:</strong> Embedding API keys directly in client-side code is insecure. Use a backend for production.</p>
+                 `;
+                 document.getElementById('analyze-btn').style.display = 'none';
+                 isGeminiInitialized = false;
+                 return false;
+             }
+             // Basic validation - could make a small test call here if needed
+             console.log("CropNova API key found. Ready to make calls.");
+             document.getElementById('gemini-response').innerHTML = "AI systems ready. Use the buttons below to start.";
+             document.getElementById('gemini-response').style.textAlign = 'center'; // Center initial message
+             isGeminiInitialized = true;
+             return true;
+        }
+
+
+        // Create particles for loading animation
+        function createParticles() {
+            const container = document.getElementById('particles');
+            if (!container) return; // Check if container exists
+            for (let i = 0; i < 30; i++) {
+                const particle = document.createElement('div');
+                particle.className = 'ai-particle';
+                particle.style.left = `${Math.random() * 100}%`;
+                particle.style.top = `${Math.random() * 100}%`;
+                particle.style.animation = `float ${2 + Math.random() * 3}s infinite ${Math.random() * 2}s`;
+                container.appendChild(particle);
+            }
+        }
+
+
+        // Initialize on load
+        window.onload = async function() {
+            createParticles();
+            // Initialize CropNova API (just validate key for REST)
+            await initializeGemini();
+
+            // Hide loading screen after a delay
+            setTimeout(() => {
+                const loadingScreen = document.querySelector('.loading-screen');
+                if (loadingScreen) {
+                    loadingScreen.style.opacity = '0';
+                    setTimeout(() => {
+                        loadingScreen.style.display = 'none';
+                    }, 500);
+                }
+            }, 2000);
+        };
+
+
+        // Initialize webcam
+        async function initWebcam() {
+            // Ensure CropNova is initialized (key validated) before starting webcam for analysis
+            if (!isGeminiInitialized) {
+                 const initialized = await initializeGemini();
+                 if (!initialized) return; // Stop if API key is invalid
+            }
+
+            try {
+                // Stop any existing stream and remove video element
+                stopWebcam();
+
+                // Get webcam
+                const constraints = {
+                    video: {
+                        facingMode: facingMode,
+                        width: { ideal: 640 }, // Request ideal resolution
+                        height: { ideal: 480 }
+                    },
+                    audio: false
+                };
+
+                webcam = await navigator.mediaDevices.getUserMedia(constraints);
+                currentStream = webcam; // Store the stream
+
+                // Create video element and attach stream
+                videoElement = document.createElement('video');
+                videoElement.srcObject = webcam;
+                // Wait for video metadata to load before playing to get dimensions
+                await new Promise((resolve, reject) => {
+                    videoElement.onloadedmetadata = () => {
+                        videoElement.play();
+                        resolve();
+                    };
+                    videoElement.onerror = (e) => {
+                         console.error("Video element error:", e);
+                         reject(new Error("Video playback error"));
+                    };
+                });
+
+
+                // Setup canvas (only once)
+                const canvas = document.getElementById("webcam-canvas");
+                // Set canvas dimensions to match the video feed's actual dimensions
+                // This helps maintain aspect ratio and capture quality
+                canvas.width = videoElement.videoWidth;
+                canvas.height = videoElement.videoHeight;
+                ctx = canvas.getContext("2d");
+
+
+                // Show video canvas
+                document.getElementById('webcam-placeholder').style.display = 'none';
+                document.getElementById('uploaded-image').style.display = 'none';
+                canvas.style.display = 'block'; // Make canvas visible
+
+                // Show analyze button
+                document.getElementById('analyze-btn').style.display = 'inline-block';
+                document.getElementById('switch-camera').style.display = 'inline-block';
+                document.getElementById('results-section').style.display = 'block';
+                document.getElementById('gemini-response').innerHTML = "Ready to analyze. Point the camera at the plant and click 'Analyze Image'.";
+                document.getElementById('gemini-response').style.textAlign = 'center'; // Center text initially
+
+
+                // Start drawing loop (only draws, no prediction here, just display)
+                requestAnimationFrame(drawLoop);
+
+            } catch (error) {
+                console.error("Error accessing camera:", error);
+                document.getElementById('webcam-placeholder').innerHTML =
+                    '<div style="font-size: 3rem; margin-bottom: 1rem;">❌</span></div><p>Camera access denied or failed</p>';
+                // Ensure webcam and videoElement are null on error
+                stopWebcam(); // Use the stop function for cleanup
+                document.getElementById('analyze-btn').style.display = 'none';
+                document.getElementById('switch-camera').style.display = 'none';
+                 document.getElementById('gemini-response').innerHTML = `
+                    <div class="error-message">Camera Error:</div>
+                    <p>${error.message}</p>
+                    <p>Please ensure your browser has camera permissions enabled and you are serving over HTTPS.</p>
+                 `;
+                 document.getElementById('gemini-response').style.textAlign = 'left'; // Reset text alignment
+            }
+        }
+
+        // Stop webcam stream and clean up
+        function stopWebcam() {
+             if (currentStream) {
+                currentStream.getTracks().forEach(track => track.stop());
+                currentStream = null;
+            }
+             if (videoElement) {
+                videoElement.pause(); // Pause before removing
+                videoElement.remove(); // Remove previous video element from memory
+                videoElement = null;
+            }
+            webcam = null; // Ensure webcam variable is cleared
+        }
+
+        // Switch between front and back camera
+        async function switchCamera() {
+            facingMode = facingMode === "user" ? "environment" : "user";
+            await initWebcam(); // Re-initialize webcam with new facingMode
+        }
+
+        // Drawing loop for webcam (only draws, no prediction)
+        function drawLoop() {
+            // Only continue loop if webcam and videoElement are active and video is ready
+            if (webcam && videoElement && videoElement.readyState >= videoElement.HAVE_ENOUGH_DATA) {
+                const canvas = document.getElementById("webcam-canvas");
+                const ctx = canvas.getContext("2d");
+
+                // Draw the video frame onto the canvas
+                // Ensure canvas dimensions match video dimensions for accurate capture
+                if (canvas.width !== videoElement.videoWidth || canvas.height !== videoElement.videoHeight) {
+                     canvas.width = videoElement.videoWidth;
+                     canvas.height = videoElement.videoHeight;
+                }
+                ctx.drawImage(videoElement, 0, 0, canvas.width, canvas.height);
+
+                // Request the next frame
+                requestAnimationFrame(drawLoop);
+            } else if (webcam && videoElement) {
+                 // If video is still loading, wait and request next frame
+                 requestAnimationFrame(drawLoop);
+            }
+            // If webcam or videoElement is null, the loop naturally stops
+        }
+
+
+        // Handle image upload
+        function handleImageUpload(files) {
+            if (!files || !files[0]) return;
+
+            // Ensure CropNova is initialized (key validated) before handling upload for analysis
+            if (!isGeminiInitialized) {
+                 initializeGemini().then(initialized => {
+                     if (initialized) handleImageUpload(files); // Retry if initialized successfully
+                 });
+                 return; // Stop here until initialized
+            }
+
+
+            // Stop webcam if running and remove video element
+            stopWebcam();
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const img = new Image(); // Create a new Image object
+                img.onload = function() {
+                    const canvas = document.getElementById("webcam-canvas");
+                    const ctx = canvas.getContext("2d");
+
+                    // Set canvas dimensions to match the image dimensions for accurate capture
+                    canvas.width = img.width;
+                    canvas.height = img.height;
+
+                    // Clear the canvas
+                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+                    // Draw the uploaded image onto the canvas
+                    // Draw it directly to fill the canvas (canvas size matches image size)
+                    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+                    // Display the canvas (which now has the image drawn on it)
+                    document.getElementById('webcam-placeholder').style.display = 'none';
+                    document.getElementById('uploaded-image').style.display = 'none'; // Hide the img element
+                    canvas.style.display = 'block'; // Show the canvas
+
+                    // Show analyze button for static image
+                    document.getElementById('analyze-btn').style.display = 'inline-block';
+                    document.getElementById('switch-camera').style.display = 'none'; // Hide switch camera for static image
+                    document.getElementById('results-section').style.display = 'block';
+                    document.getElementById('gemini-response').innerHTML = "Image uploaded. Click 'Analyze Image' to get a diagnosis.";
+                    document.getElementById('gemini-response').style.textAlign = 'center'; // Center text initially
+
+
+                };
+                img.src = e.target.result; // Set the source to trigger the onload event
+            };
+            reader.readAsDataURL(files[0]);
+        }
+
+        // Capture the current canvas content as Base64
+        function captureCanvasAsBase64() {
+            const canvas = document.getElementById("webcam-canvas");
+            if (canvas.style.display === 'none' || canvas.width === 0 || canvas.height === 0) {
+                 console.error("Canvas is not visible or has zero dimensions, cannot capture image.");
+                 return null;
+            }
+            try {
+                 // Get the data URL and remove the prefix
+                 // Use JPEG and specify quality for potentially smaller data
+                 const dataUrl = canvas.toDataURL('image/jpeg', 0.9);
+                 return dataUrl.replace(/^data:image\/(png|jpeg);base64,/, '');
+            } catch (error) {
+                 console.error("Error capturing canvas as Base64:", error);
+                 return null;
+            }
+        }
+
+        // Trigger analysis using the current canvas content
+        async function analyzeCurrentFrame() {
+            if (isAnalyzing) {
+                console.log("Analysis already in progress.");
+                return; // Prevent multiple clicks
+            }
+
+            if (!isGeminiInitialized) {
+                 document.getElementById('gemini-response').innerHTML = `
+                    <div class="error-message">Error:</div>
+                    <p>AI systems not initialized. Please check API key and try again.</p>
+                 `;
+                 document.getElementById('gemini-response').style.textAlign = 'left'; // Reset text alignment
+                 return;
+            }
+
+            const base64Image = captureCanvasAsBase64();
+            if (!base64Image) {
+                document.getElementById('gemini-response').innerHTML = `
+                    <div class="error-message">Error:</div>
+                    <p>Could not capture image from canvas. Ensure camera is active or image is loaded.</p>
+                 `;
+                 document.getElementById('gemini-response').style.textAlign = 'left'; // Reset text alignment
+                return;
+            }
+
+            isAnalyzing = true;
+            document.getElementById('analyze-btn').disabled = true;
+            document.getElementById('gemini-response').innerHTML = `
+                <div style="display: flex; align-items: center; justify-content: center; width: 100%;">
+                    <div class="ai-loader small">
+                        <div class="ai-core"></div>
+                        <div class="ai-ring"></div>
+                    </div>
+                    <span>Analyzing image...</span>
+                </div>
+            `;
+             document.getElementById('gemini-response').style.textAlign = 'center'; // Center loader and text
+             document.getElementById('scan-overlay').style.display = 'block'; // Show scan overlay during analysis
+
+
+            try {
+                // Define the prompt for Gemini
+                const prompt = "Analyze this image of a plant leaf or stem for any signs of disease or pests. Provide a concise diagnosis and suggest general steps for treatment or further investigation. If the plant appears healthy, state that. Format the response clearly with headings or bullet points if possible.";
+
+                // --- CropNova REST API Call Structure using Fetch ---
+                const requestBody = {
+                    contents: [{
+                        role: "user",
+                        parts: [
+                            { text: prompt },
+                            { inlineData: {
+                                mimeType: "image/jpeg", // Must match the type from canvas.toDataURL
+                                data: base64Image
+                            }}
+                        ]
+                    }]
+                    // Optional: Add generationConfig or safetySettings here if needed
+                    // generationConfig: { temperature: 0.4 },
+                };
+
+                const response = await fetch(GEMINI_API_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(requestBody)
+                });
+
+                if (!response.ok) {
+                    // Handle HTTP errors (e.g., 400, 401, 403, 429, 500)
+                    const errorBody = await response.json();
+                    console.error("Gemini API HTTP Error:", response.status, response.statusText, errorBody);
+                     document.getElementById('gemini-response').innerHTML = `
+                        <div class="error-message">API Error (${response.status}):</div>
+                        <p>${errorBody.error ? errorBody.error.message : response.statusText}</p>
+                        <p>Check console for details. Common issues: Invalid API key, billing, rate limits.</p>
+                     `;
+                     document.getElementById('gemini-response').style.textAlign = 'left'; // Reset text alignment
+                     return; // Stop execution here
+                }
+
+                const result = await response.json();
+                console.log("Gemini API Response:", result);
+
+                // Extract the text from the response structure
+                const responseText = result.candidates && result.candidates[0] &&
+                                     result.candidates[0].content && result.candidates[0].content.parts &&
+                                     result.candidates[0].content.parts[0] && result.candidates[0].content.parts[0].text
+                                     ? result.candidates[0].content.parts[0].text
+                                     : "Could not parse response text."; // Fallback if structure is unexpected
+
+
+                document.getElementById('gemini-response').innerHTML = `
+                    <div style="color: white; font-weight: bold; margin-bottom: 1rem;"> <div style="    font-size: 30px;
+    text-align: center;
+">CropNova AI Diagnosis:</div> <br>
+                    ${responseText} </div>
+                `;
+                 document.getElementById('gemini-response').style.textAlign = 'left'; // Reset text alignment for response
+
+
+            } catch (error) {
+                console.error("Gemini API call failed:", error);
+                 document.getElementById('gemini-response').innerHTML = `
+                    <div class="error-message">Analysis Error:</div>
+                    <p>${error.message}</p>
+                    <p>Please try again or check the browser console for details.</p>
+                    <p>Common issues: Network problems, browser blocking requests.</p>
+                 `;
+                 document.getElementById('gemini-response').style.textAlign = 'left'; // Reset text alignment
+            } finally {
+                isAnalyzing = false;
+                document.getElementById('analyze-btn').disabled = false;
+                document.getElementById('scan-overlay').style.display = 'none'; // Hide scan overlay
+            }
+        }
+
+        // Expose functions to the global scope so they can be called from HTML attributes
+        window.initWebcam = initWebcam;
+        window.switchCamera = switchCamera;
+        window.handleImageUpload = handleImageUpload;
+        window.analyzeCurrentFrame = analyzeCurrentFrame;
+
+        // createParticles is called directly in window.onload
+
+
+    </script>
+</body>
+</html>

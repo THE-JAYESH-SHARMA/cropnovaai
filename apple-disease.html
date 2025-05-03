@@ -1,0 +1,860 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CropNova AI | Disease Detection</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <!-- Futuristic Loading Animation -->
+    <div class="loading-screen">
+        <div class="ai-loader">
+            <div class="ai-core"></div>
+            <div class="ai-ring"></div>
+            <div class="ai-ring"></div>
+            <div class="ai-ring"></div>
+            <div class="ai-particles" id="particles"></div>
+        </div>
+        <div class="loading-text">INITIALIZING AI SYSTEMS</div>
+    </div>
+
+    <header>
+
+        <nav>
+            <div class="logo">CropNova AI</div>
+            <ul class="nav-links">
+                <li><a href="index.html">Home</a></li>
+                <li><a href="#" style="color: var(--accent);">Disease Detection</a></li>
+            </ul>
+        </nav>
+    </header>
+
+    <main class="container">
+        <div class="card">
+            <h1 style="text-align: center; background: linear-gradient(to right, var(--accent), var(--light)); -webkit-background-clip: text; background-clip: text; color: transparent;">
+                AI PLANT DOCTOR
+            </h1>
+            <p style="text-align: center; margin: 1rem 0 2rem; opacity: 0.9;">
+                Advanced neural network for instant plant disease diagnosis
+            </p>
+
+            <!-- Model Selection Dropdown -->
+            <div style="margin-bottom: 1.5rem; text-align: center;">
+                <label for="model-select" style="color: var(--light); margin-right: 10px;">Select Plant Type:</label>
+                <select id="model-select" onchange="handleModelChange()" class="btn">
+                    <option value="apple" class="btn" style="color: black;">Apple Diseases</option>
+                    <option value="corn" class="btn" style="color: black;">Corn Diseases</option>
+                    <option value="potato" class="btn" style="color: black;">Potato Diseases</option>
+                    <option value="tomato" class="btn" style="color: black;">Tomato Diseases</option>
+                    <!-- Add more options for other plant types/models -->
+                </select>
+            </div>
+
+            <div class="webcam-interface">
+                <div class="webcam-container" id="webcam-container">
+                    <div id="webcam-placeholder" style="width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center;">
+                        <div style="font-size: 3rem; margin-bottom: 1rem;">🌿</div>
+                        <p>Camera feed or uploaded image will appear here</p>
+                        <p style="font-size: 0.9em; opacity: 0.7; margin-top: 0.5rem;">Select a plant type and click "Start Camera" or "Upload Image".</p>
+                    </div>
+                    <div class="scan-overlay" id="scan-overlay" style="display: none;"></div>
+                    <canvas id="webcam-canvas" style="display: none; width: 100%; height: 100%;"></canvas>
+                    <img id="uploaded-image" style="display: none; width: 100%; height: 100%; object-fit: contain;">
+                </div>
+
+                <div class="controls">
+                    <button id="start-btn" class="btn" onclick="initWebcam()">
+                        <span>📷</span> Start Camera
+                    </button>
+                    <button id="switch-camera" class="btn" style="display: none;" onclick="switchCamera()">
+                        <span>🔄</span> Switch Camera
+                    </button>
+                    <label class="btn upload-btn">
+                        <span>📁</span> Upload Image
+                        <input type="file" id="file-upload" accept="image/*" onchange="handleImageUpload(this.files)">
+                    </label>
+                    <div id="didntfound" style="width: 60%;">
+                        <centre>
+                            <a href="na.html" class="btn"> Didn"t found the disease searching for?</a>
+                        </centre>
+                    </div>
+                    <br>
+
+                </div>
+
+            </div>
+
+            <div id="results-section" style="margin-top: 2rem; display: none;">
+                <h2 style="color: var(--accent); margin-bottom: 1.5rem; display: flex; align-items: center; gap: 0.5rem;">
+                    <span>🔍</span> Analysis Results
+                </h2>
+                <div id="label-container" style="margin-bottom: 2rem;"></div>
+
+                <div id="disease-info" class="card" style="padding: 1.5rem; animation: fadeIn 0.5s ease-out;"></div>
+            </div>
+        </div>
+
+    </main>
+
+    <footer>
+        <div style="max-width: 1200px; margin: 0 auto;">
+            <div style="display: flex; justify-content: center; margin-bottom: 1.5rem;">
+                <div class="logo" style=" opacity: 0.7; font-size: 2rem;">CropNova AI</div>
+            </div>
+            <ul style="display: flex; justify-content: center; list-style: none; gap: 2rem; margin-bottom: 1.5rem; flex-wrap: wrap;">
+                <li><a href="index.html" style="color: var(--light); text-decoration: none;">Home</a></li>
+                <li><a href="apple-disease.html" style="color: var(--light); text-decoration: none;">Disease Detection</a></li>
+                
+            </ul>
+            <p style="opacity: 0.7;">© 2025 CropNova AI. All rights reserved.</p>
+        </div>
+    </footer>
+    <!-- TensorFlow and Teachable Machine -->
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest/dist/tf.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@latest/dist/teachablemachine-image.min.js"></script>
+
+    <script>
+        // !! IMPORTANT SECURITY WARNING !!
+        // Embedding your API key directly in client-side code is NOT secure.
+        // For production, use a backend server to make API calls.
+        // Replace 'YOUR_GEMINI_API_KEY' with your actual key for testing ONLY.
+        const API_KEY = "AIzaSyBhjo0l3pLfm0kM9e15dWyehSU7GetW2Go"; // <-- Your API Key Here
+        // Updated API URL to use gemini-1.5-flash
+        const GEMINI_MODEL_NAME = "gemini-1.5-flash"; // Updated model name
+        const GEMINI_API_URL = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL_NAME}:generateContent?key=${API_KEY}`;
+
+
+        // Create particles for loading animation
+        function createParticles() {
+            const container = document.getElementById('particles');
+            for (let i = 0; i < 30; i++) {
+                const particle = document.createElement('div');
+                particle.className = 'ai-particle';
+                particle.style.left = `${Math.random() * 100}%`;
+                particle.style.top = `${Math.random() * 100}%`;
+                particle.style.animation = `float ${2 + Math.random() * 3}s infinite ${Math.random() * 2}s`;
+                container.appendChild(particle);
+            }
+        }
+
+        // Initialize on load
+        window.onload = function() {
+            initializeGemini()
+            createParticles();
+            setTimeout(() => {
+                document.querySelector('.loading-screen').style.opacity = '0';
+                setTimeout(() => {
+                    document.querySelector('.loading-screen').style.display = 'none';
+                }, 500);
+            }, 2000);
+        };
+
+        // Teachable Machine Models
+        const MODEL_URLS = {
+            apple: "https://teachablemachine.withgoogle.com/models/EOEK16be7/",      // Your Apple model URL
+            corn: "https://teachablemachine.withgoogle.com/models/1ym1hWVbq/",      // Your Corn model URL
+            potato:"https://teachablemachine.withgoogle.com/models/WUhNVtPrt/",    // Your Potato model URL
+            tomato: "https://teachablemachine.withgoogle.com/models/-zNGmsVwE/",  // Your Tomato model URL
+            // Add more models here: 'plant_type': 'your_model_url',
+        };
+
+        let model, webcam, ctx, maxPredictions;
+        let currentStream = null;
+        let facingMode = "environment"; // Start with rear camera
+        let videoElement = null; // Variable to hold the video element
+        let currentModelKey = 'apple'; // Default model
+        let isGeminiInitialized = false; // Flag to track if API key is validated (for Gemini calls)
+
+
+        // Initialize Gemini API (just validate key for REST)
+        async function initializeGemini() {
+             // Check if API_KEY is the placeholder OR is falsy (empty string, null, undefined)
+             if (API_KEY === "YOUR_GEMINI_API_KEY" || !API_KEY) {
+                 console.warn("Gemini API Key not set. Detailed disease info via Gemini will not be available.");
+                 isGeminiInitialized = false;
+                 return false;
+             }
+             // Basic validation - could make a small test call here if needed
+             console.log("Gemini API key found. Detailed disease info via Gemini is available.");
+             isGeminiInitialized = true;
+             return true;
+        }
+
+        // Get the selected model URL
+        function getSelectedModelUrl() {
+            const selectElement = document.getElementById('model-select');
+            currentModelKey = selectElement.value;
+            return MODEL_URLS[currentModelKey];
+        }
+
+        // Handle model change from dropdown
+        async function handleModelChange() {
+            // Stop current webcam/prediction if running
+            stopWebcam();
+            // Clear previous results
+            document.getElementById("label-container").innerHTML = "";
+            document.getElementById("disease-info").innerHTML = "";
+            document.getElementById('results-section').style.display = 'none';
+            document.getElementById('webcam-placeholder').style.display = 'flex'; // Show placeholder
+            document.getElementById('webcam-canvas').style.display = 'none'; // Hide canvas
+            document.getElementById('uploaded-image').style.display = 'none'; // Hide image
+
+            // Load the new model
+            model = null; // Clear the old model
+            await loadModel();
+        }
+
+
+        // Load the Teachable Machine model
+        async function loadModel() {
+            try {
+                const modelUrl = getSelectedModelUrl();
+                if (!modelUrl) {
+                    console.error("No model URL found for selected plant type.");
+                    document.getElementById('webcam-placeholder').innerHTML =
+                        '<div style="font-size: 3rem; margin-bottom: 1rem;">❌</div><p>Error: No model found for this plant type.</p>';
+                    document.getElementById('start-btn').innerHTML = '<span>❌</span> Error';
+                    document.getElementById('switch-camera').style.display = 'none';
+                    document.getElementById('scan-overlay').style.display = 'none';
+                    return false;
+                }
+
+                document.getElementById('start-btn').innerHTML = '<span>⚙️</span> Loading AI...';
+
+                // Show scanning animation
+                document.getElementById('scan-overlay').style.display = 'block';
+
+                // Load the model
+                model = await tmImage.load(modelUrl + "model.json", modelUrl + "metadata.json");
+                maxPredictions = model.getTotalClasses();
+
+                // Setup canvas (only once)
+                if (!ctx) { // Check if context is already initialized
+                    const canvas = document.getElementById("webcam-canvas");
+                    // Set canvas dimensions - consider matching video aspect ratio if possible
+                    canvas.width = 400;
+                    canvas.height = 300;
+                    ctx = canvas.getContext("2d");
+                }
+
+
+                document.getElementById('start-btn').innerHTML = '<span>📷</span> Start Camera';
+                document.getElementById('switch-camera').style.display = 'inline-block';
+                document.getElementById('scan-overlay').style.display = 'none'; // Hide overlay after loading
+
+                // Clear previous labels and prepare for new ones
+                const labelContainer = document.getElementById("label-container");
+                labelContainer.innerHTML = "";
+                for (let i = 0; i < maxPredictions; i++) { // and class labels
+                    labelContainer.appendChild(document.createElement("div"));
+                }
+
+                // Initialize Gemini API when the TM model is loaded
+                await initializeGemini();
+
+
+                return true;
+            } catch (error) {
+                console.error("Error loading model:", error);
+                document.getElementById('webcam-placeholder').innerHTML =
+                    '<div style="font-size: 3rem; margin-bottom: 1rem;">❌</div><p>Error loading AI model</p>';
+                document.getElementById('start-btn').innerHTML = '<span>❌</span> Load Failed';
+                document.getElementById('switch-camera').style.display = 'none';
+                document.getElementById('scan-overlay').style.display = 'none';
+                return false;
+            }
+        }
+
+        // Initialize webcam
+        async function initWebcam() {
+            try {
+                // Ensure model is loaded before starting webcam
+                if (!model) {
+                    const loaded = await loadModel();
+                    if (!loaded) return; // Stop if model failed to load
+                }
+
+                // Stop any existing stream and remove video element
+                stopWebcam();
+
+                // Get webcam
+                const constraints = {
+                    video: {
+                        facingMode: facingMode,
+                        width: { ideal: 640 }, // Request ideal resolution
+                        height: { ideal: 480 }
+                    },
+                    audio: false
+                };
+
+                webcam = await navigator.mediaDevices.getUserMedia(constraints);
+                currentStream = webcam; // Store the stream
+
+                // Create video element and attach stream
+                videoElement = document.createElement('video');
+                videoElement.srcObject = webcam;
+                // We don't need to add the video element to the DOM, just play it
+                // so its frames are available for drawing onto the canvas.
+                videoElement.play();
+
+                // Show video canvas
+                document.getElementById('webcam-placeholder').style.display = 'none';
+                document.getElementById('uploaded-image').style.display = 'none';
+                const canvas = document.getElementById("webcam-canvas");
+                canvas.style.display = 'block'; // Make canvas visible
+
+                // Start prediction loop
+                requestAnimationFrame(loop);
+                document.getElementById('results-section').style.display = 'block';
+
+            } catch (error) {
+                console.error("Error accessing camera:", error);
+                document.getElementById('webcam-placeholder').innerHTML =
+                    '<div style="font-size: 3rem; margin-bottom: 1rem;">❌</span></div><p>Camera access denied or failed</p>';
+                // Ensure webcam and videoElement are null on error
+                stopWebcam(); // Use the stop function for cleanup
+            }
+        }
+
+        // Stop webcam stream and clean up
+        function stopWebcam() {
+             if (currentStream) {
+                currentStream.getTracks().forEach(track => track.stop());
+                currentStream = null;
+            }
+             if (videoElement) {
+                videoElement.remove(); // Remove previous video element from memory
+                videoElement = null;
+            }
+            webcam = null; // Ensure webcam variable is cleared
+        }
+
+        // Switch between front and back camera
+        async function switchCamera() {
+            facingMode = facingMode === "user" ? "environment" : "user";
+            await initWebcam(); // Re-initialize webcam with new facingMode
+        }
+
+        // Handle image upload
+        function handleImageUpload(files) {
+            if (!files || !files[0]) return;
+
+            if (!model) {
+                // Load model first, then process upload
+                loadModel().then(() => handleImageUpload(files));
+                return;
+            }
+
+            // Stop webcam if running and remove video element
+            stopWebcam();
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const img = new Image(); // Create a new Image object
+                img.onload = function() {
+                    const canvas = document.getElementById("webcam-canvas");
+                    const ctx = canvas.getContext("2d");
+
+                    // Clear the canvas
+                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+                    // Draw the uploaded image onto the canvas
+                    // We need to maintain aspect ratio while fitting it to the canvas
+                    const aspectRatio = img.width / img.height;
+                    let drawWidth = canvas.width;
+                    let drawHeight = canvas.width / aspectRatio;
+                    let drawX = 0;
+                    let drawY = (canvas.height - drawHeight) / 2; // Center vertically
+
+                    if (drawHeight > canvas.height) {
+                        drawHeight = canvas.height;
+                        drawWidth = canvas.height * aspectRatio;
+                        drawX = (canvas.width - drawWidth) / 2; // Center horizontally
+                        drawY = 0;
+                    }
+
+                    ctx.drawImage(img, drawX, drawY, drawWidth, drawHeight);
+
+                    // Display the canvas (which now has the image drawn on it)
+                    document.getElementById('webcam-placeholder').style.display = 'none';
+                    document.getElementById('uploaded-image').style.display = 'none'; // Hide the img element
+                    canvas.style.display = 'block'; // Show the canvas
+
+                    // Start prediction on the canvas
+                    document.getElementById('results-section').style.display = 'block';
+                    predictStaticImage(); // Call predictStaticImage (which now predicts on canvas)
+                };
+                img.src = e.target.result; // Set the source to trigger the onload event
+            };
+            reader.readAsDataURL(files[0]);
+        }
+
+        // Prediction loop for webcam
+        async function loop() {
+            // Only continue loop if webcam and videoElement are active and video is ready
+            // videoElement.readyState >= videoElement.HAVE_ENOUGH_DATA ensures the video has frames to draw
+            if (webcam && videoElement && videoElement.readyState >= videoElement.HAVE_ENOUGH_DATA) {
+                const canvas = document.getElementById("webcam-canvas");
+                const ctx = canvas.getContext("2d"); // Get context inside loop
+
+                // Draw the video frame onto the canvas
+                // Use videoElement as the source for drawImage
+                ctx.drawImage(videoElement, 0, 0, canvas.width, canvas.height);
+
+                // Perform prediction on the canvas
+                await predict();
+
+                // Request the next frame
+                requestAnimationFrame(loop);
+            } else if (webcam && videoElement) {
+                 // If video is still loading, wait and request next frame
+                 requestAnimationFrame(loop);
+            }
+            // If webcam or videoElement is null, the loop naturally stops
+        }
+
+        // Predict for static image (now predicts on the canvas)
+        async function predictStaticImage() {
+            // Since the image is already drawn on the canvas by handleImageUpload,
+            // we can just call the regular predict function which predicts on the canvas.
+            await predict();
+        }
+
+        // Predict for webcam (using canvas)
+        async function predict() {
+            if (!model) return;
+
+            const canvas = document.getElementById("webcam-canvas");
+            // Use model.predict on the canvas which contains the current video frame or uploaded image
+            const predictions = await model.predict(canvas);
+            displayResults(predictions);
+        }
+
+        // Display prediction results
+        function displayResults(predictions) {
+            const labelContainer = document.getElementById("label-container");
+            labelContainer.innerHTML = ""; // Clear previous results
+
+            let topPrediction = { className: "", probability: 0 };
+
+            // Sort predictions by probability in descending order
+            predictions.sort((a, b) => b.probability - a.probability);
+
+            predictions.forEach((pred, i) => {
+                const percentage = (pred.probability * 100).toFixed(1);
+
+                // Create result bar
+                const resultDiv = document.createElement("div");
+                resultDiv.className = "result-bar"; // Assuming you have CSS for this class
+                resultDiv.innerHTML = `
+                    <div class="result-label">${pred.className}</div>
+                    <div class="progress-container">
+                        <div class="progress-bar" style="width: ${percentage}%"></div>
+                    </div>
+                    <div>${percentage}%</div>
+                `;
+                labelContainer.appendChild(resultDiv);
+
+                // Track top prediction (already sorted, so the first one is the top)
+                if (i === 0) {
+                     topPrediction = {
+                        className: pred.className,
+                        probability: pred.probability
+                    };
+                }
+            });
+
+            // Show detailed info if confidence > 60%
+            // You might adjust this threshold
+            if (topPrediction.probability > 0.6) {
+                // Call showDiseaseInfo which will now trigger Gemini for details
+                showDiseaseInfo(topPrediction.className);
+            } else {
+                 // Clear previous info if confidence is low
+                 document.getElementById("disease-info").innerHTML = "";
+            }
+        }
+
+        // Capture the current canvas content as Base64 (reused from general diagnosis page)
+        function captureCanvasAsBase64() {
+            const canvas = document.getElementById("webcam-canvas");
+            if (canvas.style.display === 'none' || canvas.width === 0 || canvas.height === 0) {
+                 console.error("Canvas is not visible or has zero dimensions, cannot capture image.");
+                 return null;
+            }
+            try {
+                 // Get the data URL and remove the prefix
+                 // Use JPEG and specify quality for potentially smaller data
+                 const dataUrl = canvas.toDataURL('image/jpeg', 0.9);
+                 return dataUrl.replace(/^data:image\/(png|jpeg);base64,/, '');
+            } catch (error) {
+                 console.error("Error capturing canvas as Base64:", error);
+                 return null;
+            }
+        }
+
+
+        // Get detailed disease info using Gemini API
+        async function getGeminiDiseaseInfo(diseaseName) {
+             if (!isGeminiInitialized) {
+                 console.warn("Gemini API not initialized. Cannot fetch detailed disease info.");
+                 // Fallback to showing basic info if Gemini is not available
+                 showBasicDiseaseInfo(diseaseName);
+                 return;
+             }
+
+             const base64Image = captureCanvasAsBase64();
+             if (!base64Image) {
+                 document.getElementById('disease-info').innerHTML = `
+                     <div class="error-message">Error:</div>
+                     <p>Could not capture image for detailed analysis.</p>
+                  `;
+                 return;
+             }
+
+             // Show loading state in the disease-info div
+             document.getElementById('disease-info').innerHTML = `
+                 <div style="display: flex; align-items: center; justify-content: center; width: 100%;">
+                     <div class="ai-loader small">
+                         <div class="ai-core"></div>
+                         <div class="ai-ring"></div>
+                     </div>
+                     <span>Getting detailed info for "${diseaseName}"...</span>
+                 </div>
+             `;
+             document.getElementById('disease-info').style.textAlign = 'center'; // Center loader and text
+             document.getElementById('scan-overlay').style.display = 'block'; // Show scan overlay during analysis
+
+
+             try {
+                 // Define the prompt for Gemini, asking about the specific predicted disease
+                 const prompt = `Based on the provided image, which has been classified as "${diseaseName}", provide detailed information about this plant issue. Include:
+                 1. Common symptoms.
+                 2. Potential causes (fungus, bacteria, pest, environmental, etc.).
+                 3. General suggestions for treatment or management.
+                 4. If the image doesn't strongly support this diagnosis, mention that.
+                 Format the response clearly with headings or bullet points.`;
+
+                 const requestBody = {
+                     contents: [{
+                         role: "user",
+                         parts: [
+                             { text: prompt },
+                             { inlineData: {
+                                 mimeType: "image/jpeg",
+                                 data: base64Image
+                             }}
+                         ]
+                     }]
+                     // Optional: Add generationConfig or safetySettings here if needed
+                     // generationConfig: { temperature: 0.4 },
+                 };
+                
+                 const response = await fetch(GEMINI_API_URL, {
+                     method: 'POST',
+                     headers: {
+                         'Content-Type': 'application/json'
+                     },
+                     body: JSON.stringify(requestBody)
+                 });
+
+                 if (!response.ok) {
+                     const errorBody = await response.json();
+                     console.error("Gemini API HTTP Error:", response.status, response.statusText, errorBody);
+                      document.getElementById('disease-info').innerHTML = `
+                         <div class="error-message">Detailed Info Error (${response.status}):</div>
+                         <p>${errorBody.error ? errorBody.error.message : response.statusText}</p>
+                         <p>Could not retrieve detailed information from AI.</p>
+                      `;
+                      document.getElementById('disease-info').style.textAlign = 'left'; // Reset text alignment
+                      return;
+                 }
+
+                 const result = await response.json();
+                 console.log("Gemini API Detailed Info Response:", result);
+
+                 const responseText = result.candidates && result.candidates[0] &&
+                                      result.candidates[0].content && result.candidates[0].content.parts &&
+                                      result.candidates[0].content.parts[0] && result.candidates[0].content.parts[0].text
+                                      ? result.candidates[0].content.parts[0].text
+                                      : "Could not parse detailed information from AI response.";
+
+
+                 document.getElementById('disease-info').innerHTML = `
+                     <div style="color: var(--accent); font-weight: bold; margin-bottom: 1rem;">Detailed Info for "${diseaseName}":</div>
+                     <div>${responseText}</div>
+                 `;
+                  document.getElementById('disease-info').style.textAlign = 'left'; // Reset text alignment for response
+
+
+             } catch (error) {
+                 console.error("Gemini API call for detailed info failed:", error);
+                  document.getElementById('disease-info').innerHTML = `
+                     <div class="error-message">Detailed Info Error:</div>
+                     <p>${error.message}</p>
+                     <p>Could not retrieve detailed information from AI.</p>
+                  `;
+                  document.getElementById('disease-info').style.textAlign = 'left'; // Reset text alignment
+             } finally {
+                 document.getElementById('scan-overlay').style.display = 'none'; // Hide scan overlay
+             }
+        }
+
+
+        // Show disease information (now triggers Gemini call)
+        function showDiseaseInfo(disease) {
+            const infoContainer = document.getElementById("disease-info");
+            // Clear previous info and show a temporary message
+            infoContainer.innerHTML = `
+                <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 1rem;">
+                    <span style="font-size: 2rem;">🔬</span>
+                    <h3 style="color: var(--accent);">Analyzing "${disease}"...</h3>
+                </div>
+                <p>Getting detailed information from AI...</p>
+            `;
+             infoContainer.style.textAlign = 'left'; // Default alignment for this initial message
+
+            // Trigger the Gemini API call for detailed info
+            getGeminiDiseaseInfo(disease);
+
+            // Note: The detailed info will replace the content of infoContainer
+            // when the getGeminiDiseaseInfo function completes.
+        }
+
+        // Fallback function to show basic info if Gemini fails or is not initialized
+        function showBasicDiseaseInfo(disease) {
+             const infoContainer = document.getElementById("disease-info");
+             let content = "";
+
+             // Normalize disease name for matching
+             const normalizedDisease = disease.toLowerCase().trim();
+
+             // Use the currentModelKey to determine which set of disease info to show
+             if (currentModelKey === 'apple') {
+                  switch(normalizedDisease) {
+                     case "healthy":
+                         content = `
+                             <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 1rem;">
+                                 <span style="font-size: 2rem;">🌿</span>
+                                 <h3 style="color: var(--accent);">Healthy Apple Plant</h3>
+                             </div>
+                             <p>No signs of disease detected. Your apple plant appears to be healthy.</p>
+                             <div style="margin-top: 1rem; padding: 0.8rem; background: rgba(0, 212, 255, 0.1); border-radius: 8px;">
+                                 <strong>Recommendation:</strong> Continue regular care and monitoring. Ensure adequate sunlight, water, and nutrients.
+                             </div>
+                         `;
+                         break;
+
+                     case "apple scab":
+                         content = `
+                             <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 1rem;">
+                                 <span style="font-size: 2rem;">🍂</span>
+                                 <h3 style="color: var(--accent);">Apple Scab Detected</h3>
+                             </div>
+                             <p>Caused by the fungus <em>Venturia inaequalis</em>. Symptoms include:</p>
+                             <ul style="margin: 0.5rem 0 1rem 1.5rem; list-style: disc;">
+                                 <li>Olive-green to brown spots on leaves</li>
+                                 <li>Velvety lesions on leaf undersides</li>
+                                 <li>Distorted leaves and fruit</li>
+                                 <li>Premature leaf drop in severe cases</li>
+                             </ul>
+                             <div style="margin-top: 1rem; padding: 0.8rem; background: rgba(255, 165, 0, 0.1); border-radius: 8px;">
+                                 <strong>Treatment:</strong> Apply fungicides containing myclobutanil or sulfur according to product instructions. Remove and destroy infected leaves and fallen fruit to reduce fungal spores. Prune trees for better air circulation.
+                             </div>
+                         `;
+                         break;
+
+                     // Add other Apple disease cases here
+                     // case "apple black rot": ...
+                     // case "cedar apple rust": ...
+                     // case "multiple diseases": ... // If your model has this class
+
+                     default:
+                          content = `
+                             <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 1rem;">
+                                 <span style="font-size: 2rem;">⚠️</span>
+                                 <h3 style="color: var(--accent);">Potential Issue Detected (${disease})</h3>
+                             </div>
+                             <p>Our AI has identified potential signs of "${disease}" on your apple plant.</p>
+                              <div style="margin-top: 1rem; padding: 0.8rem; background: rgba(255, 99, 71, 0.1); border-radius: 8px;">
+                                 <strong>Action:</strong> While the AI suggests this category, plant diseases can be complex. For a definitive diagnosis and specific treatment plan, it is highly recommended to consult with a local agricultural expert or extension office.
+                             </div>
+                         `;
+                  }
+             } else if (currentModelKey === 'corn') {
+                  switch(normalizedDisease) {
+                     case "healthy":
+                         content = `
+                             <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 1rem;">
+                                 <span style="font-size: 2rem;">🌽</span>
+                                 <h3 style="color: var(--accent);">Healthy Corn Plant</h3>
+                             </div>
+                             <p>No signs of disease detected. Your corn plant appears to be healthy.</p>
+                             <div style="margin-top: 1rem; padding: 0.8rem; background: rgba(0, 212, 255, 0.1); border-radius: 8px;">
+                                 <strong>Recommendation:</strong> Continue regular care and monitoring. Ensure adequate sunlight, water, and nutrients.
+                             </div>
+                         `;
+                         break;
+
+                     case "corn common rust":
+                          content = `
+                             <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 1rem;">
+                                 <span style="font-size: 2rem;">🟠</span>
+                                 <h3 style="color: var(--accent);">Corn Common Rust Detected</h3>
+                             </div>
+                             <p>Caused by the fungus <em>Puccinia sorghi</em>. Symptoms include:</p>
+                             <ul style="margin: 0.5rem 0 1rem 1.5rem; list-style: disc;">
+                                 <li>Small, cinnamon-brown pustules on both upper and lower leaf surfaces</li>
+                                 <li>Pustules are typically scattered</li>
+                                 <li>Can reduce yield in severe cases</li>
+                             </ul>
+                             <div style="margin-top: 1rem; padding: 0.8rem; background: rgba(255, 140, 0, 0.1); border-radius: 8px;">
+                                 <strong>Treatment:</strong> Fungicides can be effective if applied early. Planting resistant varieties is the best long-term strategy.
+                             </div>
+                         `;
+                         break;
+
+                     case "corn gray leaf spot":
+                          content = `
+                             <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 1rem;">
+                                 <span style="font-size: 2rem;">🌫️</span>
+                                 <h3 style="color: var(--accent);">Corn Gray Leaf Spot Detected</h3>
+                             </div>
+                             <p>Caused by the fungus <em>Cercospora zeae-maydis</em>. Symptoms include:</p>
+                             <ul style="margin: 0.5rem 0 1rem 1.5rem; list-style: disc;">
+                                 <li>Long, rectangular, gray-to-brown lesions on leaves</li>
+                                 <li>Lesions are typically limited by leaf veins</li>
+                                 <li>Can cause significant yield loss</li>
+                             </ul>
+                             <div style="margin-top: 1rem; padding: 0.8rem; background: rgba(169, 169, 169, 0.1); border-radius: 8px;">
+                                 <strong>Treatment:</strong> Fungicides are often necessary for control. Crop rotation and residue management can help reduce disease pressure. Plant resistant hybrids.
+                             </div>
+                         `;
+                         break;
+
+                     case "corn northern leaf blight":
+                          content = `
+                             <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 1rem;">
+                                 <span style="font-size: 2rem;">🍃</span>
+                                 <h3 style="color: var(--accent);">Corn Northern Leaf Blight Detected</h3>
+                             </div>
+                             <p>Caused by the fungus <em>Exserohilum turcicum</em>. Symptoms include:</p>
+                             <ul style="margin: 0.5rem 0 1rem 1.5rem; list-style: disc;">
+                                 <li>Long, elliptical, gray-green to tan lesions on leaves</li>
+                                 <li>Lesions can be several inches long</li>
+                                 <li>Can cause significant yield loss, especially if it develops early</li>
+                             </ul>
+                             <div style="margin-top: 1rem; padding: 0.8rem; background: rgba(144, 238, 144, 0.1); border-radius: 8px;">
+                                 <strong>Treatment:</strong> Fungicides can be effective. Planting resistant hybrids and managing crop residue are important control measures.
+                             </div>
+                         `;
+                         break;
+
+                     // Add other Corn disease cases here
+
+                     default:
+                          content = `
+                             <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 1rem;">
+                                 <span style="font-size: 2rem;">⚠️</span>
+                                 <h3 style="color: var(--accent);">Potential Issue Detected (${disease})</h3>
+                             </div>
+                             <p>Our AI has identified potential signs of "${disease}" on your corn plant.</p>
+                              <div style="margin-top: 1rem; padding: 0.8rem; background: rgba(255, 99, 71, 0.1); border-radius: 8px;">
+                                 <strong>Action:</strong> While the AI suggests this category, plant diseases can be complex. For a definitive diagnosis and specific treatment plan, it is highly recommended to consult with a local agricultural expert or extension office.
+                             </div>
+                         `;
+                  }
+             } else if (currentModelKey === 'potato') {
+                 switch(normalizedDisease) {
+                    case "healthy":
+                        content = `
+                            <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 1rem;">
+                                <span style="font-size: 2rem;">🥔</span>
+                                <h3 style="color: var(--accent);">Healthy Potato Plant</h3>
+                            </div>
+                            <p>No signs of disease detected. Your potato plant appears to be healthy.</p>
+                            <div style="margin-top: 1rem; padding: 0.8rem; background: rgba(0, 212, 255, 0.1); border-radius: 8px;">
+                                <strong>Recommendation:</strong> Continue regular care and monitoring. Ensure adequate sunlight, water, and nutrients.
+                            </div>
+                        `;
+                        break;
+
+                    case "potato early blight":
+                         content = `
+                            <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 1rem;">
+                                <span style="font-size: 2rem;">🟤</span>
+                                <h3 style="color: var(--accent);">Potato Early Blight Detected</h3>
+                            </div>
+                            <p>Caused by the fungus <em>Alternaria solani</em>. Symptoms include:</p>
+                            <ul style="margin: 0.5rem 0 1rem 1.5rem; list-style: disc;">
+                                <li>Dark brown to black spots on older leaves</li>
+                                <li>Spots often have concentric rings ("target spot")</li>
+                                <li>Yellowing around the spots</li>
+                            </ul>
+                            <div style="margin-top: 1rem; padding: 0.8rem; background: rgba(139, 69, 19, 0.1); border-radius: 8px;">
+                                <strong>Treatment:</strong> Apply fungicides preventatively or at the first sign of disease. Rotate crops and manage plant residue.
+                            </div>
+                        `;
+                        break;
+
+                    case "potato late blight":
+                         content = `
+                            <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 1rem;">
+                                <span style="font-size: 2rem;">⚫</span>
+                                <h3 style="color: var(--accent);">Potato Late Blight Detected</h3>
+                            </div>
+                            <p>Caused by the oomycete <em>Phytophthora infestans</em>. Symptoms include:</p>
+                            <ul style="margin: 0.5rem 0 1rem 1.5rem; list-style: disc;">
+                                <li>Water-soaked lesions on leaves, often starting at edges</li>
+                                <li>White, fuzzy growth on the underside of leaves in humid conditions</li>
+                                <li>Rapid spread and destruction of foliage</li>
+                            </ul>
+                            <div style="margin-top: 1rem; padding: 0.8rem; background: rgba(0, 0, 0, 0.1); border-radius: 8px;">
+                                <strong>Treatment:</strong> Requires aggressive fungicide application, often preventatively. Destroy infected plants and volunteer potatoes. Use resistant varieties.
+                            </div>
+                        `;
+                        break;
+
+                    // Add other Potato disease cases here
+
+                    default:
+                         content = `
+                            <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 1rem;">
+                                 <span style="font-size: 2rem;">⚠️</span>
+                                 <h3 style="color: var(--accent);">Potential Issue Detected (${disease})</h3>
+                             </div>
+                             <p>Our AI has identified potential signs of "${disease}" on your potato plant.</p>
+                              <div style="margin-top: 1rem; padding: 0.8rem; background: rgba(255, 99, 71, 0.1); border-radius: 8px;">
+                                 <strong>Action:</strong> While the AI suggests this category, plant diseases can be complex. For a definitive diagnosis and specific treatment plan, it is highly recommended to consult with a local agricultural expert or extension office.
+                             </div>
+                         `;
+                 }
+             }
+             else {
+                 // Default case if model key is not recognized or disease name is generic
+                  content = `
+                     <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 1rem;">
+                         <span style="font-size: 2rem;">❓</span>
+                         <h3 style="color: var(--accent);">Analysis Complete</h3>
+                     </div>
+                     <p>Our AI has identified "${disease}".</p>
+                      <div style="margin-top: 1rem; padding: 0.8rem; background: rgba(255, 99, 71, 0.1); border-radius: 8px;">
+                         <strong>Action:</strong> For specific information and treatment options for "${disease}", please consult with an agricultural expert.
+                     </div>
+                 `;
+             }
+
+             infoContainer.innerHTML = content;
+             infoContainer.style.textAlign = 'left'; // Ensure alignment is left for basic info
+        }
+
+
+        // Initial model load when the page loads
+        loadModel();
+
+    </script>
+</body>
+</html>
